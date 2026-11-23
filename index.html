@@ -1,0 +1,454 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Processing Practice</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one narrow column of worksheet cards under a dark "datasheet" header showing the byte 01000001 = A; a sticky score bar keeps the running total in view. */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#13202c; --muted:#566878; --line:#cdd7e0;
+  --accent:#2b5d88; --accent-ink:#ffffff; --accent-soft:#dce9f4;
+  --good:#17703f; --good-soft:#d8f0e2; --bad:#b0332a; --bad-soft:#f8dddb;
+  --hero-bg:#1c4266; --hero-ink:#f2f7fb; --hero-muted:#b4c9db; --hero-cell0:#2c5a84; --hero-cell1:#e9f3fb; --hero-cell1-ink:#10304d;
+  --display:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1820; --surface:#16222d; --ink:#e6edf3; --muted:#98a9b8; --line:#2a3a48;
+    --accent:#72b2e8; --accent-ink:#0b1a26; --accent-soft:#1c3347;
+    --good:#5fd39a; --good-soft:#143427; --bad:#ff9084; --bad-soft:#3d1c1a;
+    --hero-bg:#0c2236; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1820; --surface:#16222d; --ink:#e6edf3; --muted:#98a9b8; --line:#2a3a48;
+  --accent:#72b2e8; --accent-ink:#0b1a26; --accent-soft:#1c3347;
+  --good:#5fd39a; --good-soft:#143427; --bad:#ff9084; --bad-soft:#3d1c1a;
+  --hero-bg:#0c2236; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font:400 16px/1.55 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0 56px;
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--surface);z-index:10}
+.wrap{max-width:880px;margin:0 auto}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance}
+p{margin:0}
+button,select,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* header */
+.hero{background:var(--hero-bg);color:var(--hero-ink);border-radius:14px;margin-top:16px;padding:28px 28px 26px;display:grid;gap:22px}
+.hero h1{font-size:clamp(2rem,6vw,3rem);line-height:1.05;letter-spacing:-.02em;font-weight:700}
+.hero .lead{color:var(--hero-muted);max-width:52ch}
+.byte{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.bit{width:38px;height:44px;border-radius:6px;display:grid;place-items:center;font:700 1.2rem var(--mono);background:var(--hero-cell0);color:var(--hero-muted)}
+.bit.one{background:var(--hero-cell1);color:var(--hero-cell1-ink)}
+.eq{font:700 1.6rem var(--mono);margin-left:10px}
+.cap{font:500 .75rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--hero-muted)}
+
+/* sticky score */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:11;background:var(--surface);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 0;margin-top:16px}
+.bar .lbl{font:500 .75rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.bar .num{font:700 1.25rem var(--mono);font-variant-numeric:tabular-nums}
+.meter{flex:1 1 120px;height:8px;border-radius:99px;background:var(--accent-soft);overflow:hidden;min-width:80px}
+.meter span{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.bar .pct{font:500 .85rem var(--mono);color:var(--muted);min-width:3ch;text-align:right;font-variant-numeric:tabular-nums}
+
+/* cards */
+#tasks{display:grid;gap:20px;margin-top:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px}
+.idx{width:34px;height:34px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font:700 1rem var(--mono);flex:none}
+.titles{flex:1 1 200px;min-width:0}
+.titles h2{font-size:1.25rem;line-height:1.2}
+.src{font:500 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.pill{font:700 .85rem var(--mono);background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:3px 11px;font-variant-numeric:tabular-nums}
+.instr{color:var(--muted);margin:12px 0 16px;max-width:68ch}
+.body{display:grid;gap:14px}
+
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:500;font-size:.9rem;cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{border-color:transparent;color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:default}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* matching */
+.match{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:18px}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.m{text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 12px;cursor:pointer;line-height:1.4;transition:background .15s,border-color .15s}
+.m.term{font-family:var(--display);font-weight:700}
+.m:hover:not(:disabled){border-color:var(--accent)}
+.m.sel{border-color:var(--accent);background:var(--accent-soft)}
+.m.done{border-color:var(--good);background:var(--good-soft);cursor:default}
+.m.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.m:disabled{color:var(--ink)}
+@media (max-width:640px){.match{grid-template-columns:minmax(0,1fr)}}
+
+/* gap fill */
+.bank{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.bank .lbl{font:500 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.chip{border:1px dashed var(--line);border-radius:6px;padding:1px 8px;font:500 .85rem var(--mono)}
+.gaps{line-height:2.5}
+.gaps select{background:var(--surface);color:var(--ink);border:1.5px solid var(--line);border-radius:6px;padding:3px 6px;max-width:100%;cursor:pointer}
+.gaps select.ok{border-color:var(--good);background:var(--good-soft)}
+.gaps select.bad{border-color:var(--bad);background:var(--bad-soft)}
+
+/* choice lists */
+.q{display:grid;gap:8px;padding-top:14px;border-top:1px solid var(--line)}
+.q:first-child{border-top:0;padding-top:0}
+.qt{display:flex;gap:10px;align-items:baseline}
+.qn{font:700 .85rem var(--mono);color:var(--muted);flex:none;min-width:1.6ch;font-variant-numeric:tabular-nums}
+.opts{display:flex;flex-wrap:wrap;gap:8px;padding-left:calc(1.6ch + 10px)}
+.opt{border:1.5px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 13px;cursor:pointer;text-align:left;font-size:.95rem;transition:background .15s,border-color .15s}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt.ok{border-color:var(--good);background:var(--good-soft)}
+.opt.no{border-color:var(--bad);background:var(--bad-soft)}
+.opt:disabled{cursor:default;color:var(--ink)}
+.fb{font-size:.9rem;padding-left:calc(1.6ch + 10px);min-height:0}
+.fb.ok{color:var(--good)}
+.fb.no{color:var(--bad)}
+.fb:empty{display:none}
+.fb.plain{padding-left:0;color:var(--muted)}
+
+/* numbers */
+.nrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 0;border-top:1px solid var(--line)}
+.nrow:first-child{border-top:0}
+.nrow .t{flex:1 1 220px;min-width:0}
+.nrow input{width:7.5ch;background:var(--surface);color:var(--ink);border:1.5px solid var(--line);border-radius:6px;padding:5px 8px;font:500 1rem var(--mono);text-align:right}
+.nrow input.txt{width:5ch;text-align:center}
+.nrow input.ok{border-color:var(--good);background:var(--good-soft)}
+.nrow input.bad{border-color:var(--bad);background:var(--bad-soft)}
+.nrow .u{color:var(--muted);font-size:.9rem;min-width:0}
+.nrow .s{font:700 .85rem var(--mono);min-width:7ch}
+.nrow .s.ok{color:var(--good)}
+.nrow .s.bad{color:var(--bad)}
+
+@media (max-width:480px){
+  .card{padding:16px}
+  .hero{padding:22px 18px}
+  .bit{width:32px;height:40px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <div class="cap">Unit 8 · IT English</div>
+      <h1>Processing</h1>
+    </div>
+    <p class="lead">Six short tasks on the processor, RAM and ROM, and units of memory. Work through them in any order and watch your score at the top.</p>
+    <div>
+      <div class="byte" role="img" aria-label="The byte 01000001 equals the letter A">
+        <span class="bit">0</span><span class="bit one">1</span><span class="bit">0</span><span class="bit">0</span><span class="bit">0</span><span class="bit">0</span><span class="bit">0</span><span class="bit one">1</span>
+        <span class="eq">= A</span>
+      </div>
+      <p class="cap" style="margin-top:10px">8 bits = 1 byte · ASCII code for A</p>
+    </div>
+  </header>
+
+  <div class="bar">
+    <span class="lbl">Score</span>
+    <span class="num" id="total">0 / 0</span>
+    <div class="meter" aria-hidden="true"><span id="fill"></span></div>
+    <span class="pct" id="pct">0%</span>
+    <button class="btn ghost" type="button" id="restartAll">Restart all</button>
+  </div>
+
+  <main id="tasks"></main>
+</div>
+
+<script>
+(function(){
+  var $ = function(s,r){return (r||document).querySelector(s)};
+  function el(tag, props){
+    var e = document.createElement(tag);
+    props = props || {};
+    Object.keys(props).forEach(function(k){
+      var v = props[k];
+      if(k==='class') e.className = v;
+      else if(k==='text') e.textContent = v;
+      else if(k.indexOf('on')===0) e.addEventListener(k.slice(2), v);
+      else if(v===true) e.setAttribute(k,'');
+      else if(v!==false && v!=null) e.setAttribute(k,v);
+    });
+    for(var i=2;i<arguments.length;i++){
+      var kids = [].concat(arguments[i]);
+      kids.forEach(function(kid){ if(kid==null) return; e.append(kid.nodeType ? kid : document.createTextNode(kid)); });
+    }
+    return e;
+  }
+  function shuffle(a){
+    a = a.slice();
+    for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+    return a;
+  }
+
+  /* ---------- score ---------- */
+  var scores = {};
+  function paintTotal(){
+    var g=0, m=0;
+    Object.keys(scores).forEach(function(k){ g+=scores[k].got; m+=scores[k].max; });
+    $('#total').textContent = g + ' / ' + m;
+    var p = m ? Math.round(g/m*100) : 0;
+    $('#fill').style.width = p + '%';
+    $('#pct').textContent = p + '%';
+  }
+
+  /* ---------- 1 matching ---------- */
+  var PAIRS = [
+    ['processor','The CPU: the brain of the computer, built into a single chip.'],
+    ['control unit','Examines instructions from memory and executes them.'],
+    ['ALU','Performs arithmetic and logical operations.'],
+    ['registers','High-speed units of memory that store and control data.'],
+    ['clock','Sends signals at fixed intervals to synchronize the flow of data.'],
+    ['motherboard','The main circuit board that holds the CPU, memory chips and expansion slots.'],
+    ['bus','A path that carries electronic signals between parts of the computer.'],
+    ['expansion card','A board that adds extra functions, such as a video card or a modem.']
+  ];
+  function buildMatching(body, rep){
+    var n = PAIRS.length, matched = 0, mistakes = 0, selT = null, selD = null;
+    rep(0,n);
+    var status = el('p',{class:'fb plain','aria-live':'polite'});
+    var tBtns = PAIRS.map(function(p,i){
+      return el('button',{class:'m term',type:'button',text:p[0],onclick:function(){ pick('t',i); }});
+    });
+    var order = shuffle(PAIRS.map(function(_,i){return i;}));
+    var dBtns = {};
+    var dEls = order.map(function(i){
+      var b = el('button',{class:'m',type:'button',text:PAIRS[i][1],onclick:function(){ pick('d',i); }});
+      dBtns[i] = b; return b;
+    });
+    function clearSel(){
+      if(selT!==null) tBtns[selT].classList.remove('sel');
+      if(selD!==null) dBtns[selD].classList.remove('sel');
+      selT = selD = null;
+    }
+    function pick(side, i){
+      if(side==='t'){
+        if(tBtns[i].disabled) return;
+        if(selT!==null) tBtns[selT].classList.remove('sel');
+        selT = i; tBtns[i].classList.add('sel');
+      } else {
+        if(dBtns[i].disabled) return;
+        if(selD!==null) dBtns[selD].classList.remove('sel');
+        selD = i; dBtns[i].classList.add('sel');
+      }
+      if(selT!==null && selD!==null){
+        var t = selT, d = selD;
+        if(t===d){
+          [tBtns[t], dBtns[d]].forEach(function(b){ b.classList.remove('sel'); b.classList.add('done'); b.disabled = true; });
+          matched++; rep(matched,n); selT = selD = null;
+        } else {
+          var bt = tBtns[t], bd = dBtns[d];
+          bt.classList.add('wrong'); bd.classList.add('wrong'); mistakes++;
+          clearSel();
+          setTimeout(function(){ bt.classList.remove('wrong'); bd.classList.remove('wrong'); }, 700);
+        }
+        status.textContent = matched === n
+          ? 'All matched. Wrong tries: ' + mistakes + '.'
+          : 'Matched ' + matched + ' of ' + n + '. Wrong tries: ' + mistakes + '.';
+      }
+    }
+    body.append(
+      el('div',{class:'match'}, el('div',{class:'col'}, tBtns), el('div',{class:'col'}, dEls)),
+      status
+    );
+  }
+
+  /* ---------- 2 gap fill ---------- */
+  var TEXTS = [
+    { bank:['brain','chip','integrated circuit','control','ALU','gigahertz','clock','byte','register','modem'],
+      parts:['The CPU is the ',{a:'brain'},' of the computer. It is a tiny ',{a:'chip'},' of silicon, and the electrical circuit inside it is called an ',{a:'integrated circuit'},'. The ',{a:'control'},' unit reads instructions from memory and carries them out, while the ',{a:'ALU'},' performs calculations and logical operations. The speed of a processor is measured in ',{a:'gigahertz'},', and an internal ',{a:'clock'},' keeps the flow of data synchronized.'] },
+    { bank:['motherboard','buses','card','slot','front','peripheral','register'],
+      parts:['Every main part of the PC is connected to the ',{a:'motherboard'},'. Electronic signals travel along internal paths called ',{a:'buses'},'. To add extra functions, such as a modem or a video card, you fit an expansion ',{a:'card'},' into an expansion ',{a:'slot'},'. The ',{a:'front'},' side bus carries all data that passes from the CPU to other devices.'] }
+  ];
+  function buildGaps(body, rep){
+    var selects = [];
+    TEXTS.forEach(function(t){
+      var sorted = t.bank.slice().sort(function(a,b){return a.toLowerCase()<b.toLowerCase()?-1:1;});
+      body.append(el('p',{class:'bank'}, el('span',{class:'lbl',text:'Word bank'}), sorted.map(function(w){return el('span',{class:'chip',text:w});})));
+      var p = el('p',{class:'gaps'});
+      t.parts.forEach(function(part){
+        if(typeof part === 'string'){ p.append(part); return; }
+        var s = el('select',{'aria-label':'Gap '+(selects.length+1)}, el('option',{value:'',text:'…'}), sorted.map(function(w){return el('option',{value:w,text:w});}));
+        s._a = part.a; selects.push(s); p.append(s);
+      });
+      body.append(p);
+    });
+    var max = selects.length;
+    rep(0,max);
+    var fb = el('p',{class:'fb plain','aria-live':'polite'});
+    var check = el('button',{class:'btn primary',type:'button',text:'Check answers',onclick:function(){
+      var got = 0, empty = 0;
+      selects.forEach(function(s){
+        s.classList.remove('ok','bad');
+        if(!s.value){ empty++; return; }
+        if(s.value === s._a){ got++; s.classList.add('ok'); } else s.classList.add('bad');
+      });
+      rep(got,max);
+      fb.textContent = got + ' of ' + max + ' correct.' + (got<max ? ' Red gaps are wrong' + (empty ? ', grey gaps are still empty' : '') + '. Change them and check again.' : ' Well done.');
+    }});
+    var show = el('button',{class:'btn',type:'button',text:'Show answers',onclick:function(){
+      selects.forEach(function(s){ s.value = s._a; s.classList.remove('bad'); s.classList.add('ok'); s.disabled = true; });
+      check.disabled = true; show.disabled = true;
+      fb.textContent = 'Answers shown. Your score is the one from your last check.';
+    }});
+    body.append(el('div',{class:'actions'}, check, show), fb);
+  }
+
+  /* ---------- choice lists (true/false, RAM or ROM, multiple choice) ---------- */
+  function choiceList(items){
+    return function(body, rep){
+      var list = shuffle(items), max = list.length, got = 0;
+      rep(0,max);
+      list.forEach(function(it, qi){
+        var fb = el('p',{class:'fb','aria-live':'polite'});
+        var btns = it.options.map(function(o, oi){
+          return el('button',{class:'opt',type:'button',text:o,onclick:function(){
+            btns.forEach(function(b){ b.disabled = true; });
+            var right = oi === it.answer;
+            btns[oi].classList.add(right ? 'ok' : 'no');
+            if(!right) btns[it.answer].classList.add('ok');
+            if(right){ got++; rep(got,max); }
+            fb.className = 'fb ' + (right ? 'ok' : 'no');
+            fb.textContent = (right ? 'Correct. ' : 'Not quite. ') + (it.note || '');
+          }});
+        });
+        body.append(el('div',{class:'q'},
+          el('div',{class:'qt'}, el('span',{class:'qn',text:String(qi+1)}), el('span',{text:it.q})),
+          el('div',{class:'opts'}, btns),
+          fb));
+      });
+    };
+  }
+
+  var RAMROM = [
+    ['It loses its data when the power is switched off.',0],
+    ['It is permanent.',1],
+    ['A copy of the program you run is transferred into it from the hard disk.',0],
+    ['It contains instructions needed by the CPU.',1],
+    ['You can expand it by adding extra chips.',0],
+    ['The BIOS uses it to control communication with disk drives and other peripherals.',1],
+    ['Its size decides how many programs can run at the same time.',0],
+    ['It is called volatile memory.',0]
+  ].map(function(r){ return {q:r[0], options:['RAM','ROM'], answer:r[1]}; });
+
+  var TF = [
+    ['The processor is also called the CPU, or central processing unit.',0,'The CPU is the brain of the computer.'],
+    ['The ALU examines instructions from memory and executes them.',1,'That is the control unit. The ALU performs arithmetic and logical operations.'],
+    ['A CPU running at 4 GHz can make about four thousand million calculations a second.',0,'GHz (gigahertz) measures the speed of a processor.'],
+    ['RAM keeps its data when the power is switched off.',1,'RAM is volatile: it loses its data without power.'],
+    ['ROM contains instructions that the CPU needs.',0,'ROM is permanent. The BIOS uses it to control communication with peripherals.'],
+    ['The amount of RAM has no effect on how many programs you can run at the same time.',1,'More RAM means more programs at once, and they run faster.'],
+    ['A byte is a group of four bits.',1,'A byte is eight bits.'],
+    ['Laptops use PC cards, about the size of a credit card, to add features such as sound, memory and network capabilities.',0,'PC cards do the job of expansion cards in a laptop.']
+  ].map(function(r){ return {q:r[0], options:['True','False'], answer:r[1], note:r[2]}; });
+
+  var MC = [
+    {q:'Which part of the processor stores and controls data in high-speed memory?', options:['The control unit','The ALU','The registers','The clock'], answer:2, note:'Registers are high-speed units of memory.'},
+    {q:'What does the internal clock do?', options:['It sends signals at fixed intervals to synchronize the flow of data','It stores programs when the power is off','It performs arithmetic operations','It connects the CPU to the modem'], answer:0, note:'The clock measures and synchronizes the flow of data.'},
+    {q:'What does the front side bus carry?', options:['Electricity from the power supply','All data that passes from the CPU to other devices','Only data from the keyboard','Programs stored on the hard disk'], answer:1, note:'Buses are paths that carry electronic signals.'},
+    {q:'What does the BIOS use ROM for?', options:['To store your documents','To run several programs at once','To control communication with peripherals','To measure the speed of the CPU'], answer:2, note:'For example, communication with disk drives.'},
+    {q:'Why would you add extra RAM chips to a PC?', options:['To make the processor smaller','To run more programs at the same time and make them faster','To store files permanently','To get more expansion slots'], answer:1, note:'RAM can be expanded by adding extra chips.'},
+    {q:'What is ASCII?', options:['A type of expansion card','A unit of memory','A standard code for the binary representation of characters','A high-speed register'], answer:2, note:'For example, 01000001 is the code for the character A.'}
+  ];
+
+  /* ---------- 4 numbers ---------- */
+  var NUMS = [
+    {q:'How many bits are there in one byte?', a:'8', u:'bits'},
+    {q:'1 KB =', a:'1024', u:'bytes'},
+    {q:'2 KB =', a:'2048', u:'bytes'},
+    {q:'4 MB =', a:'4096', u:'KB'},
+    {q:'3 GB =', a:'3072', u:'MB'},
+    {q:'2 TB =', a:'2048', u:'GB'},
+    {q:'The byte 01000001 represents the character', a:'a', u:'(ASCII code)', text:true},
+    {q:'A 4 GHz processor can make about', a:'4000', u:'million calculations a second'}
+  ];
+  function buildNumbers(body, rep){
+    var max = NUMS.length;
+    rep(0,max);
+    var rows = NUMS.map(function(it, i){
+      var inp = el('input',{type:'text',id:'n'+i,class:it.text?'txt':'',inputmode:it.text?'text':'numeric',autocomplete:'off','aria-label':it.q+' '+it.u,maxlength:it.text?2:7});
+      var st = el('span',{class:'s','aria-live':'polite'});
+      var row = el('div',{class:'nrow'}, el('label',{class:'t','for':'n'+i,text:it.q}), inp, el('span',{class:'u',text:it.u}), st);
+      row._i = {it:it, inp:inp, st:st};
+      inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); doCheck(); } });
+      return row;
+    });
+    function norm(v,it){ v = String(v).trim().toLowerCase(); return it.text ? v : v.replace(/[\s., _]/g,''); }
+    var fb = el('p',{class:'fb plain','aria-live':'polite'});
+    function doCheck(){
+      var got = 0, empty = 0;
+      rows.forEach(function(r){
+        var o = r._i;
+        o.inp.classList.remove('ok','bad'); o.st.className='s'; o.st.textContent='';
+        if(!o.inp.value.trim()){ empty++; return; }
+        if(norm(o.inp.value,o.it) === o.it.a){ got++; o.inp.classList.add('ok'); o.st.classList.add('ok'); o.st.textContent='Correct'; }
+        else { o.inp.classList.add('bad'); o.st.classList.add('bad'); o.st.textContent='Try again'; }
+      });
+      rep(got,max);
+      fb.textContent = got + ' of ' + max + ' correct.' + (empty ? ' ' + empty + ' still empty.' : '');
+    }
+    var check = el('button',{class:'btn primary',type:'button',text:'Check answers',onclick:doCheck});
+    var show = el('button',{class:'btn',type:'button',text:'Show answers',onclick:function(){
+      rows.forEach(function(r){ var o=r._i; o.inp.value = o.it.text ? o.it.a.toUpperCase() : o.it.a; o.inp.disabled = true; o.inp.classList.remove('bad'); o.inp.classList.add('ok'); o.st.className='s'; o.st.textContent=''; });
+      check.disabled = true; show.disabled = true;
+      fb.textContent = 'Answers shown. Your score is the one from your last check.';
+    }});
+    body.append(el('div',{}, rows), el('div',{class:'actions'}, check, show), fb);
+  }
+
+  /* ---------- mount ---------- */
+  var EX = [
+    {id:'match', t:'Match the terms', src:'A · The processor', ins:'Click a term on the left, then click its definition. Correct pairs turn green.', build:buildMatching},
+    {id:'gaps', t:'Fill the gaps', src:'A · The processor', ins:'Choose the correct word for each gap. Some words in the bank are not needed.', build:buildGaps},
+    {id:'ramrom', t:'RAM or ROM?', src:'B · RAM and ROM', ins:'Which kind of memory does each sentence describe?', build:choiceList(RAMROM)},
+    {id:'nums', t:'Units of memory', src:'C · Units of memory', ins:'Calculate and type the number. Use 1,024 for each step up. You do not need to type commas.', build:buildNumbers},
+    {id:'tf', t:'True or false?', src:'A, B, C · Whole page', ins:'Decide whether each statement is true or false. A short note explains the answer.', build:choiceList(TF)},
+    {id:'mc', t:'Choose the best answer', src:'A, B, C · Whole page', ins:'Pick one answer for each question.', build:choiceList(MC)}
+  ];
+
+  function mount(ex, host, i){
+    var pill = el('span',{class:'pill'});
+    var body = el('div',{class:'body'});
+    var head = el('div',{class:'head'},
+      el('span',{class:'idx',text:String(i+1)}),
+      el('div',{class:'titles'}, el('h2',{id:'h-'+ex.id,text:ex.t}), el('div',{class:'src',text:ex.src})),
+      pill,
+      el('button',{class:'btn ghost',type:'button',text:'Restart',onclick:function(){ run(); }})
+    );
+    var card = el('section',{class:'card','aria-labelledby':'h-'+ex.id}, head, el('p',{class:'instr',text:ex.ins}), body);
+    function rep(got,max){
+      pill.textContent = got + ' / ' + max;
+      scores[ex.id] = {got:got, max:max};
+      paintTotal();
+    }
+    function run(){
+      body.replaceChildren();
+      ex.build(body, rep);
+    }
+    host.append(card);
+    run();
+  }
+  function renderAll(){
+    var host = $('#tasks');
+    host.replaceChildren();
+    scores = {};
+    EX.forEach(function(ex,i){ mount(ex, host, i); });
+    paintTotal();
+  }
+  $('#restartAll').addEventListener('click', renderAll);
+  renderAll();
+})();
+</script>
+
+</body></html>
